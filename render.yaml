@@ -1,0 +1,53 @@
+services:
+  # 1. Backend Express + WebSocket Server
+  - type: web
+    name: letstalk-server
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build:server
+    startCommand: npm run start:server
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: CORS_ORIGIN
+        value: '*'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: letstalk-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: AES_PASSPHRASE
+        generateValue: true
+
+  # 2. Frontend Next.js Web App
+  - type: web
+    name: letstalk-web
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build:web
+    startCommand: npm run start:web
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: letstalk-server
+          property: host
+      - key: NEXT_PUBLIC_SOCKET_URL
+        fromService:
+          type: web
+          name: letstalk-server
+          property: host
+
+databases:
+  # 3. Managed PostgreSQL Database
+  - name: letstalk-db
+    plan: free
+    databaseName: letstalk
+    user: letstalk_admin
