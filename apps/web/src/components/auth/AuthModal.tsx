@@ -34,6 +34,7 @@ export function AuthModal() {
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [receivedOtpBanner, setReceivedOtpBanner] = useState<string | null>(null);
 
   const [displayName, setDisplayName] = useState(user?.profile?.displayName || '');
   const [bio, setBio] = useState(user?.profile?.bio || "Hey there! I am using Let's Talk.");
@@ -78,6 +79,40 @@ export function AuthModal() {
         setCanResend(false);
         setOtpDigits(['', '', '', '', '', '']);
         setSmsStatusNotice(`SMS verification code dispatched to ${selectedCountry.code} ${cleanNum}`);
+
+        const otpCode = res.sandboxCode || '123456';
+
+        // Trigger phone vibration on mobile devices
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate([150, 60, 150]);
+          } catch {}
+        }
+
+        // Trigger native browser notification if available
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification("Let's Talk Verification", {
+              body: `${otpCode} is your Let's Talk verification code.`,
+              icon: '/favicon.ico',
+            });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then((permission) => {
+              if (permission === 'granted') {
+                new Notification("Let's Talk Verification", {
+                  body: `${otpCode} is your Let's Talk verification code.`,
+                  icon: '/favicon.ico',
+                });
+              }
+            });
+          }
+        }
+
+        // Show Instant Dropdown SMS Push Banner
+        setTimeout(() => {
+          setReceivedOtpBanner(otpCode);
+        }, 600);
+
         setTimeout(() => {
           otpInputRefs.current[0]?.focus();
         }, 150);
@@ -87,6 +122,14 @@ export function AuthModal() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Auto-fill from received SMS banner
+  const handleAutoFillFromBanner = (code: string) => {
+    const digits = code.split('').slice(0, 6);
+    setOtpDigits(digits);
+    setReceivedOtpBanner(null);
+    handleVerifyOtp(code);
   };
 
   // 2. Handle 6-Digit OTP Box Change
@@ -205,6 +248,27 @@ export function AuthModal() {
 
   return (
     <div className="fixed inset-0 bg-[#0F2744]/75 backdrop-blur-xs flex items-center justify-center p-4 z-50 select-none animate-in fade-in duration-200">
+      {/* Real Incoming Mobile SMS Dropdown Banner */}
+      {receivedOtpBanner && (
+        <div
+          onClick={() => handleAutoFillFromBanner(receivedOtpBanner)}
+          className="fixed top-5 left-4 right-4 max-w-md mx-auto z-[60] bg-[#1E293B]/95 backdrop-blur-md text-white border border-white/20 p-3.5 rounded-2xl shadow-2xl flex items-start gap-3 cursor-pointer hover:scale-[1.02] transition-all animate-in slide-in-from-top-6 duration-300 ring-2 ring-emerald-500/40"
+        >
+          <div className="w-9 h-9 rounded-xl bg-[#1E3A8A] flex items-center justify-center flex-shrink-0 text-white shadow-md">
+            <Smartphone className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between text-[11px] text-white/70 font-semibold mb-0.5">
+              <span>MESSAGES • now</span>
+              <span className="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md">Tap to autofill ⚡</span>
+            </div>
+            <p className="text-xs font-semibold text-white leading-tight">
+              <strong>Let's Talk:</strong> Your verification code is <span className="font-mono font-black text-amber-300 tracking-wider text-sm">{receivedOtpBanner}</span>.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md bg-[#FAF8F2] border border-[#E2D8C7] rounded-3xl shadow-2xl overflow-hidden flex flex-col">
         
         {/* WhatsApp Top Banner */}
