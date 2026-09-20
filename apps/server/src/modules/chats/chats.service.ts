@@ -1,9 +1,13 @@
 import { prisma } from '../../db/prisma.js';
+import { AuthService } from '../auth/auth.service.js';
 
 export class ChatsService {
+  // Shared in-memory chats store across all user sessions
+  public static inMemoryChats = new Map<string, any>();
+
   static async getUserChats(userId: string) {
     try {
-      const chats = await prisma.chat.findMany({
+      const dbChats = await prisma.chat.findMany({
         where: {
           members: {
             some: { userId },
@@ -29,60 +33,57 @@ export class ChatsService {
         },
         orderBy: { lastMessageAt: 'desc' },
       });
-      return chats;
+      if (dbChats && dbChats.length > 0) return dbChats;
     } catch {
-      // Return sample mock chats if DB offline
-      return [
-        {
-          id: 'chat_sample_1',
-          type: 'DIRECT',
-          name: 'Sarah Jenkins',
-          avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-          lastMessageAt: new Date().toISOString(),
-          unreadCount: 2,
-          members: [
-            { userId, role: 'MEMBER' },
-            {
-              userId: 'user_sarah',
-              role: 'MEMBER',
-              user: { profile: { displayName: 'Sarah Jenkins', bio: 'Living in the moment ✨' } },
-            },
-          ],
-          messages: [
-            {
-              id: 'msg_1',
-              content: 'Hey! Did you check the new update?',
-              type: 'TEXT',
-              senderId: 'user_sarah',
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        },
-        {
-          id: 'chat_sample_2',
-          type: 'GROUP',
-          name: 'Core Engineering Team',
-          avatarUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150',
-          lastMessageAt: new Date(Date.now() - 3600000).toISOString(),
-          unreadCount: 0,
-          members: [{ userId, role: 'ADMIN' }],
-          messages: [
-            {
-              id: 'msg_2',
-              content: 'Release v2.4 deployed to staging! 🚀',
-              type: 'TEXT',
-              senderId: 'user_alex',
-              createdAt: new Date(Date.now() - 3600000).toISOString(),
-            },
-          ],
-        },
-      ];
+      // Continue to in-memory fallback
     }
+
+    // Retrieve user's in-memory chats
+    const userChats: any[] = [];
+    for (const chat of this.inMemoryChats.values()) {
+      const isMember = chat.members?.some((m: any) => m.userId === userId || m.id === userId);
+      if (isMember) {
+        userChats.push(chat);
+      }
+    }
+
+    if (userChats.length > 0) {
+      return userChats.sort((a, b) => new Date(b.lastMessageAt || b.createdAt).getTime() - new Date(a.lastMessageAt || a.createdAt).getTime());
+    }
+
+    // Default starter chat if user has no chats yet
+    const defaultChat = {
+      id: `chat_welcome_${userId}`,
+      type: 'DIRECT',
+      name: 'Let\'s Talk Official Bot 🤖',
+      avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150',
+      lastMessageAt: new Date().toISOString(),
+      unreadCount: 0,
+      members: [
+        { userId, role: 'MEMBER' },
+        {
+          userId: 'user_official_bot',
+          role: 'ADMIN',
+          user: { profile: { displayName: 'Let\'s Talk Assistant', bio: 'Official SuperApp Bot ✨' } },
+        },
+      ],
+      messages: [
+        {
+          id: `msg_welcome_${Date.now()}`,
+          content: 'Welcome to Let\'s Talk! Type any friend\'s phone number in the search bar above to start a live chat.',
+          type: 'TEXT',
+          senderId: 'user_official_bot',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+    this.inMemoryChats.set(defaultChat.id, defaultChat);
+    return [defaultChat];
   }
 
-  static async getOrCreateDirectChat(userId: string, targetUserId: string) {
+  static async getOrCreateDirectChat(userId: string, targetUserId: string, targetPhone?: string) {
     try {
-      // Check existing chat with both members
+      // Check existing DB chat with both members
       const existing = await prisma.chat.findFirst({
         where: {
           type: 'DIRECT',
@@ -99,7 +100,7 @@ export class ChatsService {
 
       if (existing) return existing;
 
-      // Create new chat
+      // Create new chat in DB
       return await prisma.chat.create({
         data: {
           type: 'DIRECT',
@@ -115,13 +116,45 @@ export class ChatsService {
         },
       });
     } catch {
-      return {
-        id: `chat_${userId}_${targetUserId}`,
+      // In-Memory direct chat lookup/creation
+      const chatId = [userId, targetUserId].sort().join('_');
+      const existingMem = this.inMemoryChats.get(chatId);
+      if (existingMem) return existingMem;
+
+      // Resolve target user profile
+      const targetUser = AuthService.registeredUsers.get(targetUserId) || 
+                         (targetPhone ? AuthService.registeredUsers.get(targetPhone) : null) || {
+        id: targetUserId,
+        phoneNumber: targetPhone || `+91${targetUserId.replace(/\D/g, '')}`,
+        profile: {
+          displayName: targetPhone ? `Contact (${targetPhone})` : `User ${targetUserId.slice(-4)}`,
+          bio: 'Hey there! I am using Let\'s Talk.',
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUserId}`,
+        },
+      };
+
+      const currentUser = AuthService.registeredUsers.get(userId) || {
+        id: userId,
+        profile: { displayName: `You (${userId.slice(-4)})` },
+      };
+
+      const newChat = {
+        id: chatId,
         type: 'DIRECT',
+        name: targetUser.profile?.displayName || targetUser.phoneNumber,
+        avatarUrl: targetUser.profile?.avatarUrl,
+        lastMessageAt: new Date().toISOString(),
+        unreadCount: 0,
         createdAt: new Date().toISOString(),
-        members: [{ userId }, { userId: targetUserId }],
+        members: [
+          { userId, role: 'MEMBER', user: currentUser },
+          { userId: targetUserId, role: 'MEMBER', user: targetUser },
+        ],
         messages: [],
       };
+
+      this.inMemoryChats.set(chatId, newChat);
+      return newChat;
     }
   }
 }

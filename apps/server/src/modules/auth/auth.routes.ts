@@ -9,3 +9,5 @@ authRouter.post('/request-otp', authRateLimiter, AuthController.requestOtp);
 authRouter.post('/verify-otp', authRateLimiter, AuthController.verifyOtp);
 authRouter.post('/onboard', authMiddleware, AuthController.onboard);
 authRouter.get('/me', authMiddleware, AuthController.me);
+authRouter.get('/users', authMiddleware, AuthController.searchUsers);
+authRouter.get('/users/search', authMiddleware, AuthController.searchUsers);

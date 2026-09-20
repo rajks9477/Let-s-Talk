@@ -9,6 +9,7 @@ interface UIState {
 
   // Modal Dialogs
   isAuthModalOpen: boolean;
+  isNewChatOpen: boolean;
   isCreateGroupOpen: boolean;
   isCreateCommunityOpen: boolean;
   isCreateChannelOpen: boolean;
@@ -38,6 +39,7 @@ export const useUIStore = create<UIState>((set) => ({
   rightDrawerContent: null,
 
   isAuthModalOpen: false,
+  isNewChatOpen: false,
   isCreateGroupOpen: false,
   isCreateCommunityOpen: false,
   isCreateChannelOpen: false,

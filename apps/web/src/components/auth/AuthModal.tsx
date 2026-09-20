@@ -10,10 +10,10 @@ export function AuthModal() {
   const { isAuthModalOpen, setModalState } = useUIStore();
   const { user, setUser } = useAuthStore();
   const [step, setStep] = useState<'PHONE' | 'OTP' | 'PROFILE'>('PHONE');
-  const [phoneNumber, setPhoneNumber] = useState('9876543210');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [otp, setOtp] = useState('123456');
-  const [displayName, setDisplayName] = useState(user?.profile?.displayName || 'Alex Rivera');
+  const [displayName, setDisplayName] = useState(user?.profile?.displayName || '');
   const [bio, setBio] = useState(user?.profile?.bio || "Hey there! I am using Let's Talk.");
   const [loading, setLoading] = useState(false);
 
@@ -159,6 +159,10 @@ export function AuthModal() {
               required
               autoFocus
             />
+
+            <div className="text-center text-[11px] text-[#1E3A8A] font-bold bg-[#1E3A8A]/10 py-1.5 px-3 rounded-xl border border-[#1E3A8A]/20">
+              💡 Instant Verification OTP: <strong>123456</strong>
+            </div>
 
             <button
               type="submit"

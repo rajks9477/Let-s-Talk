@@ -28,7 +28,7 @@ async function fetcher(endpoint: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  // Auth
+  // Auth & Users
   requestOtp: (phoneNumber: string, countryCode: string = '+91') =>
     fetcher('/auth/request-otp', { method: 'POST', body: JSON.stringify({ phoneNumber, countryCode }) }),
   verifyOtp: (phoneNumber: string, countryCode: string = '+91', code: string) =>
@@ -36,11 +36,12 @@ export const api = {
   onboard: (profileData: any) =>
     fetcher('/auth/onboard', { method: 'POST', body: JSON.stringify(profileData) }),
   getMe: () => fetcher('/auth/me'),
+  searchUsers: (query: string) => fetcher(`/auth/users/search?q=${encodeURIComponent(query)}`),
 
   // Chats & Messages
   getChats: () => fetcher('/chats'),
-  getOrCreateDirectChat: (targetUserId: string) =>
-    fetcher('/chats/direct', { method: 'POST', body: JSON.stringify({ targetUserId }) }),
+  getOrCreateDirectChat: (targetUserId: string, targetPhone?: string) =>
+    fetcher('/chats/direct', { method: 'POST', body: JSON.stringify({ targetUserId, targetPhone }) }),
   getMessages: (chatId: string, limit: number = 50) => fetcher(`/messages/chat/${chatId}?limit=${limit}`),
   sendMessage: (payload: any) =>
     fetcher('/messages/send', { method: 'POST', body: JSON.stringify(payload) }),

@@ -1,6 +1,11 @@
 import { prisma } from '../../db/prisma.js';
+import { AuthService } from '../auth/auth.service.js';
+import { ChatsService } from '../chats/chats.service.js';
 
 export class MessagesService {
+  // Shared in-memory messages store per chatId
+  private static inMemoryMessages = new Map<string, any[]>();
+
   static async getChatMessages(chatId: string, limit: number = 50) {
     try {
       const messages = await prisma.message.findMany({
@@ -19,10 +24,12 @@ export class MessagesService {
           keptMessage: true,
         },
       });
-      return messages;
+      if (messages && messages.length > 0) return messages;
     } catch {
-      return [];
+      // Continue to in-memory fallback
     }
+
+    return this.inMemoryMessages.get(chatId) || [];
   }
 
   static async sendMessage(userId: string, data: {
@@ -81,20 +88,40 @@ export class MessagesService {
 
       return message;
     } catch {
+      // Resolve sender info
+      const senderUser = AuthService.registeredUsers.get(userId) || {
+        id: userId,
+        profile: { displayName: `User (${userId.slice(-4)})` },
+      };
+
       // Mock fallback object
-      return {
-        id: `msg_${Date.now()}`,
+      const fallbackMsg = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         chatId: data.chatId,
         senderId: userId,
-        content: data.content,
+        content: data.content || '',
         type: data.type || 'TEXT',
         replyToId: data.replyToId,
         isViewOnce: !!data.isViewOnce,
         createdAt: new Date().toISOString(),
-        sender: { id: userId, profile: { displayName: 'You' } },
+        sender: senderUser,
         attachments: data.attachments || [],
         reactions: [],
       };
+
+      if (!this.inMemoryMessages.has(data.chatId)) {
+        this.inMemoryMessages.set(data.chatId, []);
+      }
+      this.inMemoryMessages.get(data.chatId)!.push(fallbackMsg);
+
+      // Update inMemoryChat lastMessage
+      if (ChatsService.inMemoryChats.has(data.chatId)) {
+        const c = ChatsService.inMemoryChats.get(data.chatId);
+        c.lastMessageAt = fallbackMsg.createdAt;
+        c.messages = [fallbackMsg];
+      }
+
+      return fallbackMsg;
     }
   }
 

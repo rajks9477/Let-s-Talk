@@ -30,6 +30,7 @@ import { AIAssistantDrawer } from '@/components/ai/AIAssistantDrawer';
 
 // Modals & Overlays
 import { AuthModal } from '@/components/auth/AuthModal';
+import { NewChatModal } from '@/components/modals/NewChatModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { IncomingCallBanner } from '@/components/calls/IncomingCallBanner';
 import { StatusCreatorModal } from '@/components/status/StatusCreatorModal';
@@ -58,6 +59,7 @@ export default function Home() {
     isRightDrawerOpen,
     rightDrawerContent,
     isAuthModalOpen,
+    isNewChatOpen,
     isCreateGroupOpen,
     isCreateChannelOpen,
     isCreatePollOpen,
@@ -80,24 +82,12 @@ export default function Home() {
   // Load auth state on initial mount
   useEffect(() => {
     loadStoredAuth();
-    // If no user exists, initialize a default demo user so all functionality is immediately testable
     const stored = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
     if (!stored) {
-      const demoUser = {
-        id: 'usr_me_01',
-        phoneNumber: '+15559876543',
-        displayName: 'Alex Mercer',
-        username: 'alexmercer',
-        bio: 'Hey there! I am using Let\'s Talk.',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        isVerified: true,
-        twoFactorEnabled: false,
-        lastSeen: new Date().toISOString(),
-        onlineStatus: 'ONLINE',
-      };
-      setUser(demoUser, 'demo_jwt_token_lets_talk');
+      // Auto-open phone login modal on fresh visit so user can enter their own number
+      setModalState('isAuthModalOpen', true);
     }
-  }, [loadStoredAuth, setUser]);
+  }, [loadStoredAuth, setModalState]);
 
   // Render Left/Center Tab View
   const renderTabContent = () => {
@@ -199,6 +189,9 @@ export default function Home() {
 
       {/* Authentication Modal */}
       {isAuthModalOpen && <AuthModal />}
+
+      {/* Start New Chat / Search Contact by Phone */}
+      {isNewChatOpen && <NewChatModal />}
 
       {/* Incoming Call Banner & Active Call Modal */}
       {incomingCall && <IncomingCallBanner />}

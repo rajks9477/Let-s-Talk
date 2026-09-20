@@ -35,9 +35,9 @@ export function TopAppBar() {
         <div className="flex items-center gap-1.5">
           {/* New Chat Button */}
           <button
-            onClick={() => setModalState('isCreateGroupOpen', true)}
+            onClick={() => setModalState('isNewChatOpen', true)}
             className="p-2 rounded-full text-[#1E3A8A] hover:bg-[#ECE3D4] transition-all"
-            title="New chat / group"
+            title="Start new chat / search contact"
           >
             <MessageSquarePlus className="w-5 h-5" />
           </button>

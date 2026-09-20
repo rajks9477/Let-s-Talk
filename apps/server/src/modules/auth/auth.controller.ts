@@ -47,4 +47,15 @@ export class AuthController {
       next(err);
     }
   }
+
+  static async searchUsers(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const query = (req.query.q as string) || (req.query.query as string) || '';
+      const currentUserId = req.user?.id;
+      const users = await AuthService.searchUsers(query, currentUserId);
+      res.json({ success: true, users });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
