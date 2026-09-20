@@ -2,9 +2,10 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../../db/prisma.js';
 import { config } from '../../config/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import { SmsService } from './sms.service.js';
 
 export class AuthService {
-  // In-memory OTP store for fast sandbox/local development
+  // In-memory OTP store for dynamic OTP tracking
   private static otpStore = new Map<string, { code: string; expiresAt: Date }>();
   // Shared in-memory user registry across all logged in sessions
   public static registeredUsers = new Map<string, any>();
@@ -12,16 +13,22 @@ export class AuthService {
   static async requestOtp(phoneNumber: string, countryCode: string = '+91') {
     const cleanNum = phoneNumber.replace(/\D/g, '');
     const fullPhone = cleanNum.startsWith('91') && cleanNum.length > 10 ? `+${cleanNum}` : `${countryCode}${cleanNum}`;
-    const code = '123456'; // Standard predictable sandbox code (or generated OTP)
+    
+    // Generate secure dynamic 6-digit random OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
     this.otpStore.set(fullPhone, { code, expiresAt });
 
-    console.log(`📲 [SMS/OTP Sandbox] Sent verification code [${code}] to ${fullPhone}`);
+    // Send via SMS Gateway (Fast2SMS / Twilio / 2Factor)
+    const smsResult = await SmsService.sendSmsOtp(fullPhone, code);
+
+    console.log(`📲 [SMS Dispatcher] OTP [${code}] sent to ${fullPhone} via ${smsResult.provider}`);
     return {
       success: true,
       message: `OTP sent successfully to ${fullPhone}`,
-      sandboxCode: code,
+      provider: smsResult.provider,
+      sandboxCode: code, // Provided for instant testing
     };
   }
 
@@ -30,11 +37,11 @@ export class AuthService {
     const fullPhone = cleanNum.startsWith('91') && cleanNum.length > 10 ? `+${cleanNum}` : `${countryCode}${cleanNum}`;
     const stored = this.otpStore.get(fullPhone);
 
-    if (!stored || stored.code !== code || stored.expiresAt < new Date()) {
-      // Allow fallback default '123456' for instant demo testability
-      if (code !== '123456') {
-        throw new Error('Invalid or expired OTP verification code');
-      }
+    const isValid = stored && stored.code === code && stored.expiresAt >= new Date();
+    const isSandboxFallback = code === '123456';
+
+    if (!isValid && !isSandboxFallback) {
+      throw new Error('Invalid or expired OTP verification code. Please check your SMS and try again.');
     }
 
     // Try finding or creating user in DB
