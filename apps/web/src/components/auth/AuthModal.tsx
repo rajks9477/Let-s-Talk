@@ -146,30 +146,44 @@ export function AuthModal() {
         {/* Step 2: OTP */}
         {step === 'OTP' && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <p className="text-xs text-[#64748B]">
-              Code sent to <span className="font-mono text-[#0F172A] font-bold">{countryCode} {phoneNumber}</span>
-            </p>
+            <div className="text-center space-y-1">
+              <p className="text-xs text-[#64748B]">
+                Verification for <span className="font-mono text-[#0F172A] font-bold">{countryCode} {phoneNumber}</span>
+              </p>
+            </div>
 
-            <input
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="123456"
-              className="w-full bg-[#FFFFFF] text-center font-mono text-2xl tracking-widest font-bold text-[#1E3A8A] rounded-xl py-2.5 border border-[#E2D8C7] focus:border-[#1E3A8A] focus:outline-none shadow-xs"
-              required
-              autoFocus
-            />
+            {/* Prominent OTP Code Card */}
+            <div className="bg-[#EBF3FF] border border-[#1E3A8A]/30 rounded-2xl p-3.5 text-center space-y-1.5 shadow-xs">
+              <p className="text-[11px] font-bold text-[#1E3A8A] uppercase tracking-wider">
+                ✨ Your Login OTP Code is:
+              </p>
+              <div className="text-3xl font-mono font-extrabold text-[#0F2744] tracking-widest bg-white py-2 px-4 rounded-xl border border-[#E2D8C7] inline-block shadow-xs">
+                123456
+              </div>
+              <p className="text-[10px] text-[#64748B] leading-tight">
+                (Real SMS SIM ke bajaye OTP screen par hi generate kiya gaya hai)
+              </p>
+            </div>
 
-            <div className="text-center text-[11px] text-[#1E3A8A] font-bold bg-[#1E3A8A]/10 py-1.5 px-3 rounded-xl border border-[#1E3A8A]/20">
-              💡 Instant Verification OTP: <strong>123456</strong>
+            <div>
+              <label className="block text-[11px] font-bold text-[#64748B] mb-1">Enter OTP:</label>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="123456"
+                className="w-full bg-[#FFFFFF] text-center font-mono text-xl tracking-widest font-bold text-[#1E3A8A] rounded-xl py-2.5 border border-[#E2D8C7] focus:border-[#1E3A8A] focus:outline-none shadow-xs"
+                required
+                autoFocus
+              />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[#1E3A8A] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md shadow-[#1E3A8A]/20 transition-all"
+              className="w-full py-3 bg-[#1E3A8A] hover:bg-[#2563EB] text-white font-bold text-xs rounded-xl shadow-md shadow-[#1E3A8A]/20 transition-all flex items-center justify-center gap-2"
             >
-              {loading ? 'Verifying...' : 'Verify & Continue'}
+              <span>{loading ? 'Verifying...' : 'Verify OTP & Continue'}</span>
             </button>
 
             <button
