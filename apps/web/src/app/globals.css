@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-cream: #F5EFE6;
+    --panel-cream: #FAF8F2;
+    --header-cream: #ECE3D4;
+    --border-cream: #E2D8C7;
+    --navy-primary: #0A192F;
+    --navy-card: #0F2744;
+    --navy-bubble: #1E3A8A;
+    --navy-text: #0F172A;
+    --navy-muted: #64748B;
+  }
+}
+
+body {
+  color: #0F172A;
+  background-color: #F5EFE6;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Segoe UI', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Light Cream & Navy Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 39, 68, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 39, 68, 0.4);
+}
+
+/* Light Cream Doodle Chat Wallpaper Pattern */
+.wa-chat-wallpaper {
+  background-color: #F5EFE6;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(30, 58, 138, 0.02) 0%, transparent 60%),
+    url("data:image/svg+xml,%3Csvg width='240' height='240' viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%230f2744' fill-opacity='0.04' fill-rule='evenodd'%3E%3Cpath d='M30 30h20v20H30V30zm60 0h20v20H90V30zm60 0h20v20h-20V30zm60 0h20v20h-20V30zM0 60h20v20H0V60zm60 0h20v20H60V60zm60 0h20v20h-20V60zm60 0h20v20h-20V60zM30 90h20v20H30V90zm60 0h20v20H90V90zm60 0h20v20h-20V90zm60 0h20v20h-20V90zM0 120h20v20H0v-20zm60 0h20v20H60v-20zm60 0h20v20h-20v-20zm60 0h20v20h-20v-20zM30 150h20v20H30v-20zm60 0h20v20H90v-20zm60 0h20v20h-20v-20zm60 0h20v20h-20v-20zM0 180h20v20H0v-20zm60 0h20v20H60v-20zm60 0h20v20h-20v-20zm60 0h20v20h-20v-20zM30 210h20v20H30v-20zm60 0h20v20H90v-20zm60 0h20v20h-20v-20zm60 0h20v20h-20v-20z'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* Outgoing Message Bubble: Deep Luxury Navy Blue */
+.wa-bubble-out {
+  position: relative;
+  background-color: #1E3A8A;
+  color: #F8FAFC;
+  border-top-right-radius: 0px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+
+.wa-bubble-out::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -7px;
+  width: 7px;
+  height: 12px;
+  background: radial-gradient(circle at top right, transparent 70%, #1E3A8A 70%);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+/* Incoming Message Bubble: Crisp Cream White Card with subtle border */
+.wa-bubble-in {
+  position: relative;
+  background-color: #FFFFFF;
+  color: #0F172A;
+  border-top-left-radius: 0px !important;
+  border: 1px solid #E2D8C7;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.wa-bubble-in::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -7px;
+  width: 7px;
+  height: 12px;
+  background: radial-gradient(circle at top left, transparent 70%, #FFFFFF 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+/* Meta AI Glowing Gradient Orb */
+.meta-ai-orb {
+  background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 40%, #06B6D4 70%, #60A5FA 100%);
+  box-shadow: 0 0 14px rgba(37, 99, 235, 0.35);
+}
+
+/* Status Story Rings */
+.wa-status-ring-unseen {
+  padding: 2px;
+  background: conic-gradient(#1E3A8A 0deg, #3B82F6 180deg, #1E3A8A 360deg);
+  border-radius: 9999px;
+}
+
+.wa-status-ring-seen {
+  padding: 2px;
+  background: #CBD5E1;
+  border-radius: 9999px;
+}

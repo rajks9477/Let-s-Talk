@@ -1,0 +1,847 @@
+// Prisma Schema for "Let's Talk" Communication Super App
+// Master Database Model Specification (45+ Normalized Entities)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// 1. AUTHENTICATION, USERS & PROFILES
+// -------------------------------------------------------------
+
+model User {
+  id                String             @id @default(uuid())
+  phoneNumber       String             @unique
+  phoneCountryCode  String             @default("+91")
+  email             String?            @unique
+  username          String?            @unique
+  role              String             @default("USER") // USER, ADMIN, MODERATOR, BUSINESS
+  isVerified        Boolean            @default(false)
+  isBanned          Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  profile           Profile?
+  phoneVerifications PhoneVerification[]
+  sessions          Session[]
+  devices           Device[]
+  passkeys          Passkey[]
+  twoFactorAuth     TwoFactorAuth?
+  privacySetting    PrivacySetting?
+  businessProfile   BusinessProfile?
+
+  // Social & Contacts
+  contacts          Contact[]          @relation("UserContacts")
+  savedAsContact    Contact[]          @relation("ContactTarget")
+  blockedUsers      BlockedUser[]      @relation("UserBlocking")
+  blockedBy         BlockedUser[]      @relation("UserBlocked")
+  reportsFiled      Report[]           @relation("ReporterUser")
+  reportsReceived   Report[]           @relation("ReportedTarget")
+
+  // Messaging & Collaboration
+  chatMemberships   ChatMember[]
+  sentMessages      Message[]          @relation("MessageSender")
+  messageReactions  MessageReaction[]
+  messageReadReceipts MessageReadReceipt[]
+  starredMessages   StarredMessage[]
+  pinnedMessages    PinnedMessage[]
+  chatLocks         ChatLockSetting[]
+
+  // Groups & Communities
+  groupMemberships  GroupMember[]
+  communityMemberships CommunityMember[]
+
+  // Stories & Channels
+  statuses          Status[]
+  statusViews       StatusViewer[]
+  statusReactions   StatusReaction[]
+  channelFollows    ChannelFollower[]
+  ownedChannels     Channel[]          @relation("ChannelOwner")
+
+  // Calls
+  callsInitiated    Call[]             @relation("CallerUser")
+  callParticipations CallParticipant[]
+
+  // Interactive Polls & Events
+  pollVotes         PollVote[]
+  eventRSVPs        EventParticipant[]
+
+  // AI & Payments
+  aiConversations   AIConversation[]
+  paymentsSent      Payment[]          @relation("PaymentSender")
+  paymentsReceived  Payment[]          @relation("PaymentReceiver")
+  transactions      Transaction[]
+
+  // Backups & Notifications & Audit
+  notifications     Notification[]
+  backups           Backup[]
+  auditLogs         AuditLog[]
+  securityEvents    SecurityEvent[]
+  moderationActions ModerationAction[] @relation("ModeratorAdmin")
+}
+
+model Profile {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName    String
+  avatarUrl      String?
+  bio            String?   @default("Hey there! I am using Let's Talk.")
+  statusEmoji    String?
+  wallpaperUrl   String?
+  themePreference String   @default("DARK") // DARK, LIGHT, SYSTEM
+  qrCodeUrl      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model PhoneVerification {
+  id          String   @id @default(uuid())
+  phoneNumber String
+  otpHash     String
+  expiresAt   DateTime
+  verified    Boolean  @default(false)
+  method      String   @default("SMS") // SMS, CALL, WHATSAPP
+  createdAt   DateTime @default(now())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Passkey {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String  @unique
+  publicKey   String
+  counter     Int      @default(0)
+  deviceType  String?
+  createdAt   DateTime @default(now())
+}
+
+model TwoFactorAuth {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isEnabled   Boolean  @default(false)
+  secret      String
+  backupCodes String?  // JSON stringified array of hashed backup codes
+  createdAt   DateTime @default(now())
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  refreshToken String?  @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model Device {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName   String
+  deviceType   String   // WEB, ANDROID, IOS, WINDOWS, MAC, TABLET
+  pushToken    String?
+  lastActiveAt DateTime @default(now())
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 2. CONTACTS, PRIVACY & SECURITY
+// -------------------------------------------------------------
+
+model Contact {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation("UserContacts", fields: [userId], references: [id], onDelete: Cascade)
+  contactId   String
+  contactUser User     @relation("ContactTarget", fields: [contactId], references: [id], onDelete: Cascade)
+  customName  String?
+  isFavorite  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, contactId])
+}
+
+model BlockedUser {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation("UserBlocking", fields: [userId], references: [id], onDelete: Cascade)
+  blockedId   String
+  blockedUser User     @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, blockedId])
+}
+
+model PrivacySetting {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenVisibility   String   @default("EVERYONE") // EVERYONE, CONTACTS, NOBODY, EXCEPT
+  onlineVisibility     String   @default("EVERYONE")
+  profilePicVisibility String   @default("EVERYONE")
+  aboutVisibility      String   @default("EVERYONE")
+  statusVisibility     String   @default("CONTACTS")
+  readReceiptsEnabled  Boolean  @default(true)
+  groupAddPermission   String   @default("EVERYONE") // EVERYONE, CONTACTS, NOBODY
+  silenceUnknownCalls  Boolean  @default(false)
+  appLockEnabled       Boolean  @default(false)
+  appLockTimeoutSec    Int      @default(0) // 0 = Immediately
+  secretCode           String?
+  updatedAt            DateTime @updatedAt
+}
+
+model SecurityEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType   String   // LOGIN, PASSWORD_CHANGE, 2FA_ENABLE, SUSPICIOUS_ATTEMPT
+  ipAddress   String?
+  userAgent   String?
+  metadata    String?  // JSON metadata
+  createdAt   DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 3. CHATS, CONVERSATIONS & MESSAGING
+// -------------------------------------------------------------
+
+model Chat {
+  id                   String                  @id @default(uuid())
+  type                 String                  @default("DIRECT") // DIRECT, GROUP, COMMUNITY, CHANNEL
+  name                 String?
+  description          String?
+  avatarUrl            String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  lastMessageAt        DateTime                @default(now())
+
+  members              ChatMember[]
+  messages             Message[]
+  disappearingSetting  DisappearingMessageSetting?
+  chatLocks            ChatLockSetting[]
+  group                Group?
+}
+
+model ChatMember {
+  id           String    @id @default(uuid())
+  chatId       String
+  chat         Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         String    @default("MEMBER") // OWNER, ADMIN, MEMBER
+  isMuted      Boolean   @default(false)
+  isArchived   Boolean   @default(false)
+  isPinned     Boolean   @default(false)
+  unreadCount  Int       @default(0)
+  customTheme  String?
+  wallpaperUrl String?
+  joinedAt     DateTime  @default(now())
+
+  @@unique([chatId, userId])
+}
+
+model Message {
+  id              String               @id @default(uuid())
+  chatId          String
+  chat            Chat                 @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User                 @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content         String?
+  type            String               @default("TEXT") // TEXT, IMAGE, VIDEO, AUDIO, VOICE, ROUND_VIDEO, DOCUMENT, POLL, EVENT, LOCATION, CONTACT, STICKER, SYSTEM
+  replyToId       String?
+  replyTo         Message?             @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies         Message[]            @relation("MessageReplies")
+  isForwarded     Boolean              @default(false)
+  isViewOnce      Boolean              @default(false)
+  isViewed        Boolean              @default(false)
+  isDisappearing  Boolean              @default(false)
+  expiresAt       DateTime?
+  isEdited        Boolean              @default(false)
+  isDeletedForAll Boolean              @default(false)
+  deletedForUsers String?              // JSON array of user IDs
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  attachments     Attachment[]
+  reactions       MessageReaction[]
+  edits           MessageEdit[]
+  readReceipts    MessageReadReceipt[]
+  starredBy       StarredMessage[]
+  pinnedIn        PinnedMessage[]
+  poll            Poll?
+  event           Event?
+  keptMessage     KeptMessage?
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+}
+
+model MessageEdit {
+  id          String   @id @default(uuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  prevContent String
+  editedAt    DateTime @default(now())
+}
+
+model MessageReadReceipt {
+  id        String    @id @default(uuid())
+  messageId String
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveredAt DateTime @default(now())
+  readAt    DateTime?
+
+  @@unique([messageId, userId])
+}
+
+model StarredMessage {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+}
+
+model PinnedMessage {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pinnedAt  DateTime @default(now())
+
+  @@unique([messageId, userId])
+}
+
+model DisappearingMessageSetting {
+  id             String   @id @default(uuid())
+  chatId         String   @unique
+  chat           Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  durationSeconds Int     @default(0) // 0 = OFF, 86400 = 24h, 604800 = 7d, 7776000 = 90d
+  enabledByUserId String?
+  updatedAt      DateTime @updatedAt
+}
+
+model KeptMessage {
+  id        String   @id @default(uuid())
+  messageId String   @unique
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  keptByUserId String
+  keptAt    DateTime @default(now())
+}
+
+model ChatLockSetting {
+  id        String   @id @default(uuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isLocked  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([chatId, userId])
+}
+
+// -------------------------------------------------------------
+// 4. ATTACHMENTS & MEDIA
+// -------------------------------------------------------------
+
+model Attachment {
+  id          String   @id @default(uuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileUrl     String
+  thumbnailUrl String?
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  durationSec Int?     // For Audio / Video
+  waveform    String?  // JSON array for voice waveforms
+  width       Int?
+  height      Int?
+  isHD        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 5. GROUPS, COMMUNITIES & RBAC
+// -------------------------------------------------------------
+
+model Group {
+  id                  String           @id @default(uuid())
+  chatId              String           @unique
+  chat                Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  name                String
+  description         String?
+  avatarUrl           String?
+  inviteCode          String?          @unique
+  adminApprovalRequired Boolean        @default(false)
+  sendMessagesPolicy  String           @default("ALL") // ALL, ONLY_ADMINS
+  editInfoPolicy      String           @default("ALL") // ALL, ONLY_ADMINS
+  communityId         String?
+  community           Community?       @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  members             GroupMember[]
+}
+
+model GroupMember {
+  id        String   @id @default(uuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER") // ADMIN, MEMBER
+  joinedAt  DateTime @default(now())
+
+  @@unique([groupId, userId])
+}
+
+model Community {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  iconUrl     String?
+  ownerId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  groups      Group[]
+  members     CommunityMember[]
+}
+
+model CommunityMember {
+  id          String    @id @default(uuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @default("MEMBER") // ADMIN, MEMBER
+  joinedAt    DateTime  @default(now())
+
+  @@unique([communityId, userId])
+}
+
+// -------------------------------------------------------------
+// 6. POLLS & EVENTS
+// -------------------------------------------------------------
+
+model Poll {
+  id              String       @id @default(uuid())
+  messageId       String       @unique
+  message         Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  question        String
+  isMultipleChoice Boolean     @default(false)
+  createdAt       DateTime     @default(now())
+
+  options         PollOption[]
+  votes           PollVote[]
+}
+
+model PollOption {
+  id        String     @id @default(uuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text      String
+  order     Int        @default(0)
+
+  votes     PollVote[]
+}
+
+model PollVote {
+  id        String     @id @default(uuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votedAt   DateTime   @default(now())
+
+  @@unique([pollId, optionId, userId])
+}
+
+model Event {
+  id           String             @id @default(uuid())
+  messageId    String             @unique
+  message      Message            @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  location     String?
+  startTime    DateTime
+  endTime      DateTime?
+  reminderMinutes Int             @default(30)
+  createdAt    DateTime           @default(now())
+
+  participants EventParticipant[]
+}
+
+model EventParticipant {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rsvp      String   @default("GOING") // GOING, NOT_GOING, MAYBE
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+}
+
+// -------------------------------------------------------------
+// 7. STATUS STORIES & BROADCAST CHANNELS
+// -------------------------------------------------------------
+
+model Status {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String           @default("TEXT") // TEXT, PHOTO, VIDEO, VOICE
+  content     String?
+  mediaUrl    String?
+  bgGradient  String?
+  caption     String?
+  privacy     String           @default("CONTACTS") // CONTACTS, EXCEPT, ONLY
+  privacyList String?          // JSON user IDs
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+
+  views       StatusViewer[]
+  reactions   StatusReaction[]
+}
+
+model StatusViewer {
+  id        String   @id @default(uuid())
+  statusId  String
+  status    Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt  DateTime @default(now())
+
+  @@unique([statusId, userId])
+}
+
+model StatusReaction {
+  id        String   @id @default(uuid())
+  statusId  String
+  status    Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([statusId, userId, emoji])
+}
+
+model Channel {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  category    String            @default("GENERAL")
+  isVerified  Boolean           @default(false)
+  ownerId     String
+  owner       User              @relation("ChannelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  inviteLink  String?           @unique
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  followers   ChannelFollower[]
+  posts       ChannelPost[]
+}
+
+model ChannelFollower {
+  id        String   @id @default(uuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isMuted   Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+
+  @@unique([channelId, userId])
+}
+
+model ChannelPost {
+  id          String   @id @default(uuid())
+  channelId   String
+  channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  content     String?
+  mediaUrl    String?
+  type        String   @default("TEXT") // TEXT, PHOTO, VIDEO, POLL
+  viewsCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  reactions   ChannelReaction[]
+}
+
+model ChannelReaction {
+  id        String      @id @default(uuid())
+  postId    String
+  post      ChannelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([postId, userId, emoji])
+}
+
+// -------------------------------------------------------------
+// 8. WEBRTC CALLING & SIGNALING
+// -------------------------------------------------------------
+
+model Call {
+  id          String            @id @default(uuid())
+  callerId    String
+  caller      User              @relation("CallerUser", fields: [callerId], references: [id], onDelete: Cascade)
+  type        String            @default("VOICE") // VOICE, VIDEO, GROUP_VOICE, GROUP_VIDEO
+  status      String            @default("RINGING") // RINGING, CONNECTED, MISSED, REJECTED, ENDED
+  startedAt   DateTime          @default(now())
+  endedAt     DateTime?
+  durationSec Int               @default(0)
+  callLink    String?           @unique
+
+  participants CallParticipant[]
+  events       CallEvent[]
+}
+
+model CallParticipant {
+  id        String    @id @default(uuid())
+  callId    String
+  call      Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String    @default("INVITED") // INVITED, CONNECTED, LEFT, DECLINED
+  joinedAt  DateTime?
+  leftAt    DateTime?
+
+  @@unique([callId, userId])
+}
+
+model CallEvent {
+  id        String   @id @default(uuid())
+  callId    String
+  call      Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  eventType String   // OFFER, ANSWER, ICE, MUTE, SCREEN_SHARE, RAISE_HAND
+  payload   String?  // JSON data
+  createdAt DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 9. SANDBOXED PAYMENTS & UPI LEDGER
+// -------------------------------------------------------------
+
+model Payment {
+  id          String   @id @default(uuid())
+  senderId    String
+  sender      User     @relation("PaymentSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User     @relation("PaymentReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  amount      Float
+  currency    String   @default("INR")
+  status      String   @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED
+  vpaSender   String
+  vpaReceiver String
+  note        String?
+  referenceId String   @unique
+  createdAt   DateTime @default(now())
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // DEBIT, CREDIT
+  amount      Float
+  balanceAfter Float
+  description String
+  createdAt   DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 10. BUSINESS SUITE & CATALOG
+// -------------------------------------------------------------
+
+model BusinessProfile {
+  id             String       @id @default(uuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName   String
+  description    String?
+  category       String?
+  address        String?
+  website        String?
+  email          String?
+  hours          String?      // JSON operating hours
+  awayMessage    String?
+  greetingMessage String?
+  isVerified     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  catalogs       Catalog[]
+  quickReplies   QuickReply[]
+  labels         Label[]
+}
+
+model Catalog {
+  id          String    @id @default(uuid())
+  businessId  String
+  business    BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  products    Product[]
+  createdAt   DateTime  @default(now())
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  catalogId   String
+  catalog     Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  currency    String   @default("INR")
+  imageUrl    String?
+  inStock     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model QuickReply {
+  id          String          @id @default(uuid())
+  businessId  String
+  business    BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  shortcut    String          // e.g. "/thanks"
+  message     String
+  createdAt   DateTime        @default(now())
+}
+
+model Label {
+  id          String          @id @default(uuid())
+  businessId  String
+  business    BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String          // e.g. "New Customer", "Pending Payment"
+  colorHex    String          @default("#3b82f6")
+  createdAt   DateTime        @default(now())
+}
+
+// -------------------------------------------------------------
+// 11. AI CONVERSATIONS ("Aura AI")
+// -------------------------------------------------------------
+
+model AIConversation {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String      @default("AI Assistant Chat")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  messages  AIMessage[]
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // user, assistant, system
+  content        String
+  tokensUsed     Int?
+  model          String         @default("gemini-1.5-flash")
+  createdAt      DateTime       @default(now())
+}
+
+// -------------------------------------------------------------
+// 12. NOTIFICATIONS, BACKUPS, AUDIT & MODERATION
+// -------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  type      String   // MESSAGE, CALL, MENTION, STATUS, PAYMENT
+  data      String?  // JSON metadata
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Backup {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileSize    Int
+  backupUrl   String
+  isEncrypted Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  reporterId  String
+  reporter    User     @relation("ReporterUser", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedId  String
+  reportedUser User    @relation("ReportedTarget", fields: [reportedId], references: [id], onDelete: Cascade)
+  reason      String
+  status      String   @default("PENDING") // PENDING, REVIEWED, RESOLVED, DISMISSED
+  createdAt   DateTime @default(now())
+}
+
+model ModerationAction {
+  id          String   @id @default(uuid())
+  moderatorId String
+  moderator   User     @relation("ModeratorAdmin", fields: [moderatorId], references: [id], onDelete: Cascade)
+  targetUserId String
+  actionType  String   // BAN, SUSPEND, WARN, DELETE_MESSAGE
+  reason      String
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  resource  String
+  details   String?  // JSON metadata
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model FeatureRegistryItem {
+  id          String   @id @default(uuid())
+  featureId   Int      @unique
+  featureName String
+  category    String
+  status      String   @default("IMPLEMENTED")
+  updatedAt   DateTime @updatedAt
+}

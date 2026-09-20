@@ -1,0 +1,30 @@
+{
+  "name": "lets-talk-super-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Next-Generation WhatsApp-Style Communication Super App",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
+    "dev:server": "cd apps/server && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "build": "npm run build:server && npm run build:web",
+    "build:server": "cd apps/server && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "test": "cd apps/server && npm test",
+    "lint": "npm run lint:server && npm run lint:web",
+    "lint:server": "cd apps/server && npm run lint",
+    "lint:web": "cd apps/web && npm run lint",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
+    "docker:up": "docker-compose up --build -d",
+    "docker:down": "docker-compose down"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prisma": "^5.14.0",
+    "typescript": "^5.4.5"
+  }
+}
